@@ -1,2 +1,2 @@
 # Fuelpass
-QR code generator foe printing
+QR code generator for printing
