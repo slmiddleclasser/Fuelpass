@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Pass Card Generator</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eaeff2; display: flex; justify-content: center; padding: 20px; }
+        .setup-container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 14px; }
+        
+        #fuelCard {
+            width: 350px; height: 210px; background: #ffffff; border: 1px solid #000; 
+            border-radius: 12px; position: relative; overflow: hidden; margin: 20px auto; color: #000;
+        }
+        .header-bar { background: #b30000; color: #ffffff; text-align: center; padding: 8px 0; font-weight: bold; font-size: 14px; text-transform: uppercase; }
+        .main-content { display: flex; padding: 10px; gap: 10px; }
+        .qr-box { width: 120px; text-align: center; }
+        #qrPreview { width: 110px; height: 110px; border: 2px solid #000; object-fit: contain; background: #fff; }
+        .scan-msg { font-size: 8px; font-weight: bold; margin-top: 4px; }
+        .data-box { flex: 1; font-size: 12px; line-height: 1.6; padding-top: 5px; }
+        .label { font-size: 9px; font-weight: bold; color: #555; display: block; text-transform: uppercase; margin-top: 4px; }
+        .val { font-weight: bold; color: #000; margin-bottom: 2px; display: block; border-bottom: 1px solid #eee; }
+
+        .footer-bar {
+            position: absolute; bottom: 0; width: 100%; height: 32px; background: #f1f1f1; 
+            border-top: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; box-sizing: border-box;
+        }
+        .fb-info { display: flex; align-items: center; gap: 5px; color: #1877F2; font-size: 10px; font-weight: bold; }
+        .brand-logo { height: 20px; max-width: 60px; object-fit: contain; }
+        button.download-btn { background: #007bff; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="setup-container">
+    <h2 style="text-align: center; margin-top:0; font-size: 20px;">Fuel Card Generator</h2>
+    
+    <input type="file" id="qrInput" accept="image/*">
+    <input type="text" id="nameIn" placeholder="Full Name" oninput="updateCard()">
+    <input type="text" id="vehIn" placeholder="Vehicle Number" oninput="updateCard()">
+    <select id="fuelIn" onchange="updateCard()">
+        <option value="PETROL">PETROL</option>
+        <option value="DIESEL">DIESEL</option>
+    </select>
+    
+    <div id="fuelCard">
+        <div class="header-bar">National Fuel Pass</div>
+        <div class="main-content">
+            <div class="qr-box">
+                <img id="qrPreview" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+                <div class="scan-msg">SCAN FOR FUEL</div>
+            </div>
+            <div class="data-box">
+                <span class="label">Owner Name</span><span class="val" id="cardName">---</span>
+                <span class="label">Vehicle Number</span><span class="val" id="cardVeh">---</span>
+                <span class="label">Fuel Type</span><span class="val" id="cardFuel">PETROL</span>
+            </div>
+        </div>
+        <div class="footer-bar">
+            <div class="fb-info">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="fill: #1877F2;">
+                    <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
+                </svg>
+                <span>fb.com/MiddleClasser</span>
+            </div>
+            <img id="brandLogo" src="logo.png" class="brand-logo" crossorigin="anonymous" onerror="this.style.display='none'">
+        </div>
+    </div>
+
+    <button class="download-btn" onclick="saveAsPDF()">Download Print-Ready PDF</button>
+</div>
+
+<script>
+    function updateCard() {
+        document.getElementById('cardName').innerText = document.getElementById('nameIn').value || "---";
+        document.getElementById('cardVeh').innerText = document.getElementById('vehIn').value || "---";
+        document.getElementById('cardFuel').innerText = document.getElementById('fuelIn').value;
+    }
+
+    document.getElementById('qrInput').onchange = function(e) {
+        const reader = new FileReader();
+        reader.onload = function() { document.getElementById('qrPreview').src = reader.result; }
+        reader.readAsDataURL(e.target.files[0]);
+    }
+
+    async function saveAsPDF() {
+        const { jsPDF } = window.jspdf;
+        const card = document.getElementById('fuelCard');
+
+        html2canvas(card, {
+            scale: 3,
+            useCORS: true, 
+            allowTaint: false,
+            backgroundColor: "#ffffff"
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ 
+                orientation: 'landscape', 
+                unit: 'mm', 
+                format: [85.6, 54] 
+            });
+            pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54);
+            pdf.save("FuelPass_" + (document.getElementById('vehIn').value || "Card") + ".pdf");
+        }).catch(err => {
+            console.error(err);
+            alert("Download Error: " + err.message);
+        });
+    }
+</script>
+</body>
+</html>
